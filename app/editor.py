@@ -23,10 +23,18 @@ class Edit(BaseModel):
 
 
 def incoming_offers(stream):
-    return [
-        {key: offer[key] for key in ("offer_id", "state", "share") if key in offer}
-        for offer in stream.get("offers", []) if offer.get("state") != "deleted"
-    ]
+    rows = stream.get("offers", [])
+    if not isinstance(rows, list):
+        raise HTTPException(502, "Keitaro вернул некорректный список офферов потока")
+    result = []
+    for offer in rows:
+        if isinstance(offer, dict) and offer.get("state") == "deleted":
+            continue
+        if (not isinstance(offer, dict) or type(offer.get("offer_id")) is not int
+                or type(offer.get("share")) is not int):
+            raise HTTPException(502, "В ответе Keitaro отсутствует корректный ID или вес оффера")
+        result.append({key: offer[key] for key in ("offer_id", "state", "share") if key in offer})
+    return result
 
 
 def membership(offers):
@@ -57,6 +65,16 @@ def snapshot(row):
 
 def discard_unchanged_draft(row):
     draft = row.draft
+    if draft is not None:
+        # Older drafts could zero disabled shares during redistribution.
+        disabled = {offer_id: share for offer_id, (share, state) in draft["base"] if state == "disabled"}
+        offers = [
+            {**offer, "share": disabled[offer["offer_id"]]}
+            if offer.get("state") == "disabled" and offer["offer_id"] in disabled else offer
+            for offer in draft["offers"]
+        ]
+        if offers != draft["offers"]:
+            row.draft = draft = {**draft, "offers": offers}
     if (draft is not None and draft["pins"] == row.pins
             and set(draft["archive"]) == set(row.archive)
             and membership(draft["offers"]) == membership(row.published)):
@@ -103,7 +121,11 @@ def redistribute(offers, pins):
     if free:
         base, extra = divmod(remaining, len(free))
         shares.update({str(offer_id): base + (index < extra) for index, offer_id in enumerate(free)})
-    return [{**offer, "share": shares.get(str(offer["offer_id"]), 0)} for offer in offers]
+    return [
+        {**offer, "share": shares[str(offer["offer_id"])]}
+        if offer.get("state", "active") == "active" else offer
+        for offer in offers
+    ]
 
 
 catalog_lock = Lock()

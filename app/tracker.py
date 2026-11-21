@@ -55,6 +55,13 @@ def request_with_status(method, path, body=None):
             raise HTTPException(502, "Keitaro отклонил авторизацию (HTTP 401). Проверьте, что "
                                 "KEITARO_API_KEY — действующий ключ Admin API для сервера KEITARO_URL. "
                                 "После изменения настроек перезапустите Adrobot.") from None
+        if status == 403:
+            raise HTTPException(403, "Keitaro запретил операцию (HTTP 403). Проверьте права "
+                                "пользователя API на этот ресурс.") from None
+        if status == 429:
+            raise HTTPException(429, "Достигнут лимит запросов Keitaro (HTTP 429).") from None
+        if 500 <= status < 600:
+            raise HTTPException(502, f"Ошибка сервера Keitaro (HTTP {status}).") from None
         if status == 422:
             reason = validation_reason(error.response, body, key)
             if method == "POST" and path == "campaigns" and reason.casefold().rstrip(".") == (

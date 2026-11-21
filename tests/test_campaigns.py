@@ -241,3 +241,34 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(response.status_code, 502)
         self.assertIn("кампании 10", response.json()["detail"])
         self.assertNotIn("campaigns/10/enable", [path for _, path, _ in self.calls])
+
+    def test_late_creation_failures_stop_at_failed_step(self):
+        for fail_at in ("second_stream", "enable"):
+            with self.subTest(fail_at=fail_at):
+                self.calls.clear()
+
+                def fail_step(method, url, headers, json, timeout):
+                    response = self.remote(method, url, headers, json, timeout)
+                    if fail_at == "second_stream" and url.endswith("/streams") and json["position"] == 2:
+                        return httpx.Response(503, request=response.request)
+                    if fail_at == "enable" and url.endswith("/enable"):
+                        raise httpx.ReadTimeout("timeout", request=response.request)
+                    return response
+
+                with patch("app.tracker.httpx.request", side_effect=fail_step):
+                    response = self.create()
+                self.assertEqual(response.status_code, 502)
+                self.assertIn("кампании 10", response.json()["detail"])
+                expected = ["campaigns", "streams", "streams"]
+                if fail_at == "enable":
+                    expected.append("campaigns/10/enable")
+                self.assertEqual([path for method, path, _ in self.calls if method == "POST"], expected)
+
+    def test_catalog_access_limit_and_upstream_failure(self):
+        for upstream, expected, reason in ((403, 403, "права"), (429, 429, "лимит"), (503, 502, "сервера")):
+            with self.subTest(upstream=upstream):
+                self.responses["GET", "offers"] = (upstream, {"error": "test-key"})
+                response = self.client.get("/api/offers")
+                self.assertEqual(response.status_code, expected)
+                self.assertIn(reason, response.json()["detail"])
+                self.assertNotIn("test-key", response.text)

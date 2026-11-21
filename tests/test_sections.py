@@ -74,6 +74,32 @@ class SectionTests(unittest.TestCase):
         self.addCleanup(client.close)
         return client
 
+    def test_disabled_weight_survives_edit_and_push(self):
+        client = self.editor_client()
+        disabled = dict(offer_id=3, state="disabled", share=15)
+        stream = dict(id=9, name="Test", schema="landings", offers=[
+            dict(offer_id=1, share=50), dict(offer_id=2, share=50), disabled])
+        with patch("app.editor.request", return_value=[stream]):
+            client.post("/api/campaigns/2/fetch").raise_for_status()
+        draft = client.post("/api/streams/9/edit", json=dict(action="remove", offer_id=1)).json()
+        expected = [dict(offer_id=2, share=100), disabled]
+        self.assertEqual(draft["offers"], expected)
+        with editor.Session.begin() as db:
+            row = db.get(StreamState, 9)
+            row.draft = {**row.draft, "offers": [expected[0], {**disabled, "share": 0}]}
+        with patch("app.editor.request", side_effect=[stream, {**stream, "offers": expected}]) as upstream:
+            client.post("/api/streams/9/push").raise_for_status()
+            self.assertEqual(upstream.call_args.args, ("PUT", "streams/9", {"offers": expected}))
+
+    def test_malformed_fetch_preserves_previous_state(self):
+        client = self.editor_client()
+        stream = dict(id=9, name="Test", schema="landings", offers=[dict(offer_id=1, share=100)])
+        with patch("app.editor.request", return_value=[stream]):
+            client.post("/api/campaigns/2/fetch").raise_for_status()
+        with patch("app.editor.request", return_value=[{**stream, "offers": [dict(offer_id=1)]}]):
+            self.assertEqual(client.post("/api/campaigns/2/fetch").status_code, 502)
+        self.assertEqual(client.post("/api/streams/9/cancel").json()["offers"], stream["offers"])
+
     def test_external_removal_and_empty_streams(self):
         client = self.editor_client()
         offer = dict(offer_id=7, state="active", share=100)
