@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adrobot · Редактор</title>
+<link rel="stylesheet" href="/static/style.css">
+<script type="module" src="/static/editor.js"></script>
+</head>
+<body>
+<main>
+<h1>Кампании Keitaro</h1>
+<nav aria-label="Разделы Adrobot">
+<a href="/creator">Создаватор</a>
+<a href="/editor" aria-current="page">Редактор</a>
+</nav>
+<section>
+<h2>Редактор потоков</h2>
+<form id="fetch" class="actions">
+<div class="campaign-field">
+<label for="campaign">Введите название или ID кампании</label>
+<small id="campaign-status" role="status"></small>
+<input id="campaign" name="campaign" list="editor-campaigns" placeholder="Например, Лето или 12345" autocomplete="off" required>
+</div>
+<datalist id="editor-campaigns"></datalist>
+<button type="submit" disabled>Fetch Streams</button>
+<button type="button" id="show-campaigns" aria-controls="all-campaigns" aria-expanded="false">Показать все кампании</button>
+<small id="status" role="status"></small>
+<small id="list-status" role="status"></small>
+</form>
+<select id="all-campaigns" aria-label="Все доступные кампании" size="7" hidden></select>
+<p id="offer-status" role="status"></p>
+<datalist id="editor-offers"></datalist>
+<div id="streams"></div>
+</section>
+</main>
+</body>
+</html>

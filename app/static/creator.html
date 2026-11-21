@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adrobot · Создаватор</title>
+<link rel="stylesheet" href="/static/style.css">
+<script type="module" src="/static/creator.js"></script>
+</head>
+<body>
+<main>
+<h1>Кампании Keitaro</h1>
+<nav aria-label="Разделы Adrobot">
+<a href="/creator" aria-current="page">Создаватор</a>
+<a href="/editor" id="editor-link">Редактор</a>
+</nav>
+<section>
+<h2>Создатель кампаний Keitaro</h2>
+<form id="create">
+<small id="offer-catalog-error" class="error" role="alert"></small>
+<label>Название кампании<input name="name" required maxlength="255"></label>
+<label>Гео<input name="country" required placeholder="MX,AU,RO" autocapitalize="characters" spellcheck="false"></label>
+<label><span>Оффер <small id="offer-loading" role="status"></small></span><input name="offer" list="campaign-offers" placeholder="Введите название" autocomplete="off" required></label>
+<datalist id="campaign-offers"></datalist>
+<div class="actions"><button disabled>Создать</button>
+<p id="create-status" role="status" aria-live="polite" aria-atomic="true">Форма ещё не готова. Если сообщение остаётся, обновите страницу и проверьте, что JavaScript включён.</p>
+</div>
+</form>
+</section>
+<section id="created-section" hidden>
+<h2>Созданные кампании</h2>
+<ul id="created-campaigns"></ul>
+</section>
+</main>
+</body>
+</html>

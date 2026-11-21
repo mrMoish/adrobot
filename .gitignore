@@ -1,0 +1,5 @@
+/.env
+/.venv/
+/venv/
+/adrobot.db
+__pycache__/
